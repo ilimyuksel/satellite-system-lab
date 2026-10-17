@@ -1,0 +1,31 @@
+/************************ TRICK HEADER *************************
+PURPOSE: (Milestone 1: orbit/environment coupled to energy storage and payload.)
+LIBRARY DEPENDENCIES:
+ ((orbit/src/Orbit.cpp) (power/src/Power.cpp) (payload/src/Payload.cpp) (system/src/Spacecraft.cpp))
+***************************************************************/
+#define TRICK_NO_MONTE_CARLO
+#define TRICK_NO_MASTERSLAVE
+#define TRICK_NO_INSTRUMENTATION
+#define TRICK_NO_REALTIMEINJECTOR
+#define TRICK_NO_ZEROCONF
+#include "sim_objects/default_trick_sys.sm"
+##include "orbit/include/Orbit.hh"
+##include "system/include/Spacecraft.hh"
+##include "trick/exec_proto.h"
+class SatelliteSimObject : public Trick::SimObject {
+public:
+    Orbit satellite;
+    Spacecraft spacecraft;
+    SatelliteSimObject() {
+        ("default_data") satellite.default_data();
+        ("default_data") spacecraft.default_data();
+        ("initialization") satellite.initialize();
+        ("initialization") spacecraft.initialize(satellite.illumination, satellite.sun_distance);
+        ("derivative") satellite.derivatives();
+        ("integration") trick_ret = satellite.integrate_state();
+        (1.0, "scheduled") satellite.diagnostics();
+        (1.0, "scheduled") spacecraft.step(exec_get_sim_time(), satellite.illumination, satellite.sun_distance);
+    }
+};
+SatelliteSimObject dyn;
+IntegLoop dyn_integloop(1.0) dyn;

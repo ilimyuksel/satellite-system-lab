@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Satellite System Lab • İlk bütünleşik model</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#091321;color:#e4edf7;font:15px system-ui,sans-serif}header{padding:24px 32px;border-bottom:1px solid #27374a;display:flex;justify-content:space-between;gap:20px;align-items:center}h1{font-size:25px;margin:5px 0}small,.muted{color:#9fb2c9}main{display:grid;grid-template-columns:minmax(0,1fr) 290px;min-height:650px}.scene{position:relative;min-height:570px}canvas{width:100%;height:100%;position:absolute;touch-action:none;cursor:grab}aside{padding:24px;border-left:1px solid #27374a;background:#0e1c2c}h2{font-size:15px;color:#9fb2c9;font-weight:500}.metric{padding:13px 0;border-bottom:1px solid #27374a}.metric span{display:block;color:#9fb2c9;font-size:13px}.metric strong{display:block;font-size:25px;margin-top:4px;font-variant-numeric:tabular-nums;font-weight:500}.hint{position:absolute;bottom:18px;left:24px;color:#a8bed6;pointer-events:none}.badge{color:#73e1cd;border:1px solid #2a5b57;padding:8px 12px;border-radius:20px;font-size:12px}.controls{padding:20px 32px;background:#102034;display:flex;gap:16px;align-items:center;flex-wrap:wrap}button,select{font:inherit;color:#e4edf7;background:#213952;border:1px solid #48617b;border-radius:8px;padding:9px 14px;cursor:pointer}button.primary{background:#67dbc5;color:#092327;border:0}input[type=range]{accent-color:#67dbc5;flex:1;min-width:180px}footer{padding:16px 32px;color:#9fb2c9;font-size:13px;line-height:1.7}#clock{min-width:80px;font-variant-numeric:tabular-nums}label{display:inline-flex;align-items:center;gap:8px}button:focus-visible,select:focus-visible,canvas:focus-visible{outline:2px solid #67dbc5;outline-offset:4px}@media(max-width:760px){header{padding:18px}.badge{display:none}main{grid-template-columns:1fr;min-height:0}.scene{height:420px;min-height:0}aside{display:flex;gap:16px;flex-wrap:wrap;border-left:0;padding:16px}aside h2,aside p{width:100%}.metric{flex:1;min-width:120px}.metric strong{font-size:20px}.controls{padding:16px}}
+</style></head><body>
+<header><div><small>NASA TRICK / C++ MODELLEME</small><h1>Satellite System Lab</h1><small>M1 · Yörünge + çevre + güç sistemi + faydalı yük</small></div><div class="badge">Trick kayıtlarından oynatım</div></header>
+<section style="padding:16px 32px;background:#102034"><strong id="scenario">—</strong><p class="muted">Hesaplanan: yörünge, gölge, panel gücü, batarya enerjisi ve yük yönetimi. Sonraki aşamalar: ADCS ve termal. Görüntü, tamamlanmış bir Trick koşusunun kaydıdır.</p></section>
+<main><div class="scene"><canvas id="space" tabindex="0" aria-label="Üç boyutlu Dünya ve uydu yörüngesi. Kamerayı sürükleyin veya yön tuşlarını kullanın; yakınlaştırmak için fare tekerleği veya artı eksi tuşları.">Tarayıcınız canvas desteklemiyor.</canvas><div class="hint">Sürükle: döndür · Tekerlek: yakınlaştır · X / Y / Z: eylemsiz eksenler</div></div>
+<aside><h2>ALT SİSTEM TELEMETRİSİ</h2>
+<div class="metric"><span>Batarya doluluk oranı</span><strong id="soc">—</strong></div>
+<div class="metric"><span>Panel üretimi / sağlanan güç</span><strong id="power">—</strong></div>
+<div class="metric"><span>Faydalı yük · gerçek çalışma durumu</span><strong id="payload">—</strong></div>
+<div class="metric"><span>Enerji yönetimi</span><strong id="epsmode">—</strong></div>
+<div class="metric"><span>EPS enerji dengesi kalıntısı</span><strong id="epsbalance">—</strong></div>
+<details><summary style="padding:16px 0">Yörünge ve kuvvet ayrıntıları</summary><div class="metric"><span>Referans küre üzerindeki irtifa</span><strong id="alt">—</strong></div><div class="metric"><span>Yörünge hızı</span><strong id="speed">—</strong></div><div class="metric"><span>Başlangıç eğimi</span><strong id="inc">—</strong></div><div class="metric"><span>Bağıl enerji değişimi (fiziksel + sayısal)</span><strong id="energy">—</strong></div><div class="metric"><span>İş hesabı sonrası enerji kalıntısı</span><strong id="balance">—</strong></div>
+<div class="metric"><span>Güneş görünürlüğü</span><strong id="light">—</strong></div><div class="metric"><span>Atmosfer yoğunluğu</span><strong id="rho">—</strong></div><h2 id="force">ETKİLER</h2><div id="forces"></div></details><p class="muted">Uydu simgesi görünür olması için büyütülmüştür. Gövde yönelimi temsili; yönelim dinamiği hesaplanmaz.</p></aside></main>
+<div class="controls"><button class="primary" id="play">Oynat</button><button id="reset">Başa dön</button><span id="clock">00:00:00</span><input type="range" id="timeline" min="0" value="0" step="1" aria-label="Simülasyon zamanı"><label>Hız <select id="rate"><option value="30">30×</option><option value="120" selected>120×</option><option value="600">600×</option></select></label><button id="camera">Kamerayı sıfırla</button></div>
+<section style="padding:20px 32px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+<div><h2>BATARYA DOLULUĞU (%)</h2><svg id="socplot" viewBox="0 0 1000 190" role="img" aria-label="Simülasyon boyunca batarya doluluğu"><path id="socline" fill="none" stroke="#67dbc5" stroke-width="2"/><line id="socmark" y1="15" y2="150" stroke="#e4edf7"/><text x="5" y="28" fill="#9fb2c9">100%</text><text x="15" y="150" fill="#9fb2c9">0%</text><text x="60" y="180" fill="#9fb2c9">0 dk</text><text x="865" y="180" fill="#9fb2c9">200 dk</text></svg></div>
+<div><h2>GÜÇ (W) · TURKUAZ: PANEL / SARI: YÜK</h2><svg id="powerplot" viewBox="0 0 1000 190" role="img" aria-label="Panel üretimi ve sağlanan yük gücü"><path id="solarline" fill="none" stroke="#67dbc5" stroke-width="2"/><path id="loadline" fill="none" stroke="#edc879" stroke-width="2"/><line id="powermark" y1="15" y2="150" stroke="#e4edf7"/><text id="powertop" x="5" y="28" fill="#9fb2c9">60 W</text><text x="15" y="150" fill="#9fb2c9">0</text><text x="60" y="180" fill="#9fb2c9">0 dk</text><text x="865" y="180" fill="#9fb2c9">200 dk</text></svg></div></section>
+<section style="padding:20px 32px;border-top:1px solid #27374a"><h2>KAYDEDİLEN UYDU VE ORTAM PARAMETRELERİ</h2><div id="params" style="display:flex;flex-wrap:wrap;gap:24px"></div><p class="muted">Alanlar sabit etkin kesitlerdir. Atmosfer nominal üstel modeldir; gerçek uzay hava durumu kullanılmaz. Güneş/Ay: NASA/JPL DE441 verileri.</p></section>
+<footer>Turkuaz çizgi: kaydedilen yörünge · Dünya ızgarası: başlangıç açısı sıfır kabul edilen sabit hızlı dönüş.<br>Bu bir canlı bağlantı değildir. Model parametrelerini değiştirip <code>./tools/run.sh nominal</code> çalıştırarak yeni sonuç üret.</footer>
+<script>
+const DATA=__ORBIT_DATA__;
+const rows=DATA.rows, R=DATA.radius, $=id=>document.getElementById(id);
+const canvas=$('space'), ctx=canvas.getContext('2d');
+$('scenario').textContent=DATA.scenario==='low_power'?'Düşük enerji senaryosu · yük kısıtlama':'Nominal senaryo · 12 kg CubeSat';
+const xmax=rows[rows.length-1][0];
+const pmax=Math.max(10,Math.ceil(Math.max(...rows.map(r=>Math.max(r[20],r[21])))/10)*10);
+function trace(index,max){return rows.map((r,i)=>(i?'L':'M')+(60+900*r[0]/xmax).toFixed(2)+','+(150-125*r[index]/max).toFixed(2)).join(' ');}
+$('socline').setAttribute('d',trace(19,1));$('solarline').setAttribute('d',trace(20,pmax));$('loadline').setAttribute('d',trace(21,pmax));$('powertop').textContent=pmax+' W';
+let yaw=-0.65,pitch=0.42,zoom=1, time=0,playing=false,last=null,drag=null,w=0,h=0;
+$('timeline').max=rows[rows.length-1][0];
+$('inc').textContent=DATA.inclination.toFixed(1)+'°';
+const config=DATA.config;
+$('params').textContent=`Kütle: ${config.mass} kg · Sürükleme alanı: ${config.drag_area} m² · Işınım alanı: ${config.srp_area} m² · Cd: ${config.cd} · Cr: ${config.cr} · Yoğunluk çarpanı: ${config.density_scale} · Perigee: ${config.altitude0/1000} km · e: ${config.eccentricity} · RAAN: ${config.raan_deg}° · Perigee açısı: ${config.arg_perigee_deg}° · Gerçek anomali: ${config.true_anomaly_deg}° · Başlangıç: ${DATA.epoch} + ${config.epoch_offset_s} s`;
+const forceNames=['Merkezi çekim','J2','Sürükleme','Işınım basıncı','Güneş çekimi','Ay çekimi'];
+const switches=[true,config.use_j2,config.use_drag,config.use_srp,config.use_sun,config.use_moon];
+const fmt=(v,n=2)=>v.toLocaleString('tr-TR',{minimumFractionDigits:n,maximumFractionDigits:n});
+function transform(p){let x=Math.cos(yaw)*p[0]-Math.sin(yaw)*p[1],y=Math.sin(yaw)*p[0]+Math.cos(yaw)*p[1];return [x,Math.cos(pitch)*p[2]-Math.sin(pitch)*y,Math.sin(pitch)*p[2]+Math.cos(pitch)*y];}
+function screen(q){let s=Math.min(w,h)*0.34*zoom;return [w/2+q[0]*s,h/2-q[1]*s];}
+function visible(q){return q[2]>=0 || q[0]*q[0]+q[1]*q[1]>1.003;}
+function path(points,color,width=1,occlude=true){ctx.beginPath();let pen=false;for(const p of points){const q=transform(p),s=screen(q);if(occlude&&!visible(q)){pen=false;continue;}if(pen)ctx.lineTo(...s);else ctx.moveTo(...s);pen=true;}ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+function sample(t){let lo=0,hi=rows.length-1;while(lo+1<hi){let mid=(lo+hi)>>1;if(rows[mid][0]<=t)lo=mid;else hi=mid;}let a=rows[lo],b=rows[hi],f=Math.max(0,Math.min(1,(t-a[0])/(b[0]-a[0])));return a.map((v,k)=>[23,24,26].includes(k)?v:v+(b[k]-v)*f);}
+function draw(){let rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;w=rect.width;h=rect.height;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+const scale=Math.min(w,h)*0.34*zoom;
+let g=ctx.createRadialGradient(w/2-scale*.35,h/2-scale*.4,scale*.05,w/2,h/2,scale);g.addColorStop(0,'#255c81');g.addColorStop(.7,'#12334c');g.addColorStop(1,'#071726');ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h/2,scale,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#3c88a2';ctx.lineWidth=1.2;ctx.stroke();
+const angle=7.292115e-5*time;
+for(let lat=-60;lat<=60;lat+=30){let a=lat*Math.PI/180,points=[];for(let k=0;k<=180;k++){let b=k*Math.PI/90+angle;points.push([Math.cos(a)*Math.cos(b),Math.cos(a)*Math.sin(b),Math.sin(a)]);}path(points,lat===0?'#568da5':'#2d526b',lat===0?1.5:1);}
+for(let lon=0;lon<360;lon+=30){let a=lon*Math.PI/180+angle,points=[];for(let k=-90;k<=90;k+=2){let b=k*Math.PI/180;points.push([Math.cos(b)*Math.cos(a),Math.cos(b)*Math.sin(a),Math.sin(b)]);}path(points,'#2d526b');}
+for(let axis=0;axis<3;axis++){let p=[0,0,0];p[axis]=1.42;path([[0,0,0],p],'#728ba6',1);let q=transform(p),s=screen(q);ctx.fillStyle='#b4c9df';ctx.font='13px system-ui';ctx.fillText('XYZ'[axis],s[0]+5,s[1]);}
+path(rows.map(r=>[r[1]/R,r[2]/R,r[3]/R]),'#63d9c2',1.4);
+let row=sample(time),p=row.slice(1,4).map(v=>v/R),q=transform(p),s=screen(q);
+if(visible(q)){ctx.save();ctx.translate(...s);ctx.rotate(-.28);ctx.fillStyle='#638cde';ctx.strokeStyle='#b9d0ff';ctx.lineWidth=1;for(let x of [-26,9]){ctx.fillRect(x,-7,17,14);ctx.strokeRect(x,-7,17,14);for(let j=1;j<3;j++){ctx.beginPath();ctx.moveTo(x+j*17/3,-7);ctx.lineTo(x+j*17/3,7);ctx.stroke();}}ctx.fillStyle='#edc879';ctx.fillRect(-6,-9,12,18);ctx.strokeStyle='#fff2c5';ctx.strokeRect(-6,-9,12,18);ctx.restore();ctx.fillStyle='#e9f7ff';ctx.fillText('UYDU',s[0]+32,s[1]-12);}else{ctx.fillStyle='#b4c9df';ctx.font='13px system-ui';ctx.fillText('Uydu Dünya’nın arkasında',20,28);}
+$('soc').textContent=fmt(row[19]*100,1)+' %';
+$('power').textContent=fmt(row[20],1)+' / '+fmt(row[21],1)+' W';
+$('payload').textContent=['Kapalı','Bekleme','Çalışıyor'][Math.round(row[23])];
+$('epsmode').textContent=row[24]?'Düşük enerji · yük kısıtlı':'Normal';
+$('epsbalance').textContent=row[25].toExponential(2)+' Wh';
+for(const id of ['socmark','powermark']){$(id).setAttribute('x1',60+900*time/xmax);$(id).setAttribute('x2',60+900*time/xmax);}
+$('alt').textContent=fmt(row[7]/1000)+' km';$('speed').textContent=fmt(row[8]/1000,3)+' km/s';$('energy').textContent=row[9].toExponential(2);
+$('balance').textContent=row[10].toExponential(2);
+$('rho').textContent=config.use_drag?row[11].toExponential(2)+' kg/m³':'kapalı';
+$('light').textContent=(config.use_srp||config.use_sun||config.use_moon)?fmt(100*row[12],1)+' %':'Hesaplanmıyor';
+$('forces').textContent='';
+forceNames.forEach((name,k)=>{let line=document.createElement('p');line.style.fontSize='13px';line.textContent=name+': '+(switches[k]?row[13+k].toExponential(2)+' m/s²':'kapalı');$('forces').appendChild(line);});
+let sec=Math.floor(time);$('clock').textContent=[Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':');$('timeline').value=time;
+}
+function setPlaying(v){playing=v;$('play').textContent=v?'Duraklat':'Oynat';}
+$('play').onclick=()=>{if(time>=+ $('timeline').max)time=0;setPlaying(!playing);};
+$('reset').onclick=()=>{time=0;setPlaying(false);draw();};
+$('timeline').oninput=e=>{time=+e.target.value;draw();};
+$('camera').onclick=()=>{yaw=-.65;pitch=.42;zoom=1;draw();};
+canvas.onpointerdown=e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};
+canvas.onpointermove=e=>{if(!drag)return;yaw+=(e.clientX-drag[0])*.008;pitch=Math.max(-1.5,Math.min(1.5,pitch+(e.clientY-drag[1])*.008));drag=[e.clientX,e.clientY];draw();};
+canvas.onpointerup=canvas.onpointercancel=()=>drag=null;
+canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.5,Math.min(2,zoom*Math.exp(-e.deltaY*.001)));draw();},{passive:false});
+canvas.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-'].includes(e.key))return;e.preventDefault();if(e.key==='ArrowLeft')yaw-=.1;if(e.key==='ArrowRight')yaw+=.1;if(e.key==='ArrowUp')pitch=Math.min(1.5,pitch+.1);if(e.key==='ArrowDown')pitch=Math.max(-1.5,pitch-.1);if(e.key==='+')zoom=Math.min(2,zoom*1.1);if(e.key==='-')zoom=Math.max(.5,zoom/1.1);draw();};
+new ResizeObserver(draw).observe(canvas);
+function tick(now){if(playing&&last!==null){time=Math.min(+ $('timeline').max,time+Math.min((now-last)/1000,.1)*+ $('rate').value);if(time>=+ $('timeline').max)setPlaying(false);draw();}last=now;requestAnimationFrame(tick);}draw();requestAnimationFrame(tick);
+</script></body></html>
