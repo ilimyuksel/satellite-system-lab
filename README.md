@@ -3,11 +3,11 @@
 **NASA Trick üzerinde C++ ile geliştirilen uydu sistem modelinin ilk bütünleşik sürümü.**
 
 Bu proje, yörünge/çevre modelini elektrik güç sistemi ve basit bir faydalı yükle
-birleştirir. Simülasyon gerçek Trick koşusudur; web ekranı bu koşudan kaydedilen
+ve üç düğümlü termal sistemle birleştirir. Simülasyon gerçek Trick koşusudur; web ekranı bu koşudan kaydedilen
 veriyi 3B olarak oynatır. Veriler ve uydu parametreleri eğitim amaçlı sentetiktir.
 
-**Mevcut aşama: M1 — Yörünge + çevre + EPS + faydalı yük bağlantısı.**
-ADCS, termal sistem, hata enjeksiyonu ve yapay zekâ henüz uygulanmadı.
+**Mevcut aşama: M2 — Yörünge + çevre + EPS + faydalı yük + termal bağlantı.**
+ADCS, hata enjeksiyonu ve yapay zekâ henüz uygulanmadı.
 
 ## Şu an ne gösterebiliyoruz?
 
@@ -16,11 +16,13 @@ ADCS, termal sistem, hata enjeksiyonu ve yapay zekâ henüz uygulanmadı.
 - Panel üretimi ile yük tüketimi arasındaki farkın bataryaya etkisi.
 - Zaman planına göre faydalı yükün çalışması; düşük enerjide engellenmesi.
 - Batarya doluluk sınırları, kullanılmayan güç ve karşılanamayan güç talebi.
-- Kuvvet ve enerji dengesi testleri ile tekrarlanabilir iki senaryo.
-- 3B yörünge, batarya doluluğu ve güç eğrilerini aynı zamanda gösteren web demo.
+- Gövde, batarya ve faydalı yük sıcaklıkları; elektrik gücüyle çalışan termostatlı ısıtıcı.
+- Kuvvet ve enerji dengesi testleri ile tekrarlanabilir dört sistem senaryosu.
+- Kaydedilen Güneş yönü ve aydınlık/karanlık Dünya yüzeyiyle 3B yörünge gösterimi.
+- Batarya doluluğu, şarj/deşarj, gölge durumu ve güç eğrilerini birlikte gösteren web demo.
 
 **[Hazır 3B demoyu aç](web/index.html)** · **[Özelliklerin durumu](docs/STATUS.md)** ·
-**[Model mimarisi](docs/ARCHITECTURE.md)** · **[Parametreler](docs/PARAMETERS.md)** ·
+**[Model mimarisi](docs/ARCHITECTURE.md)** · **[Parametreler](docs/PARAMETERS.md)** · **[Termal model](docs/THERMAL.md)** ·
 **[Mentör gösterimi](docs/DEMO.md)** · **[Doğrulama sonuçları](docs/VALIDATION.md)**
 
 GitHub dosya görünümü HTML'i uygulama olarak çalıştırmaz. Yerelde tarayıcıda aç
@@ -59,6 +61,8 @@ ayarlayabilirsin. Yerel ayarlar Git'e dahil edilmez.
 
 ```sh
 ./tools/run.sh low_power  # düşük başlangıç enerjisi ve küçük etkin panel alanı
+./tools/run.sh cold       # soğuk başlangıç, ısıtıcı açık
+./tools/run.sh cold_no_heater # aynı koşul, ısıtıcı kapalı
 ./tools/run.sh nominal    # normal demoyu yeniden üret
 ```
 
@@ -89,6 +93,7 @@ satellite-system-lab/
 │   │   ├── orbit/              # yörünge ve dış çevre kuvvetleri
 │   │   ├── power/              # EPS güç/enerji dengesi
 │   │   ├── payload/            # komut planı ve güç talebi
+│   │   ├── thermal/            # üç düğümlü ısı dengesi ve termostat
 │   │   └── system/             # alt sistemlerin birlikte çalışması
 │   ├── environment/            # paketli NASA/JPL verileri ve kaynak bilgisi
 │   ├── RUN_nominal/input.py    # ilk gösterim senaryosu
@@ -107,7 +112,7 @@ satellite-system-lab/
 | Ölçüm | Nominal | Düşük enerji |
 |---|---:|---:|
 | Başlangıç doluluğu | %65 | %22 |
-| Son doluluk | %33,35 | %0 |
+| Son doluluk | %32,57 | %0 |
 | Faydalı yükün gerçek çalışma süresi | 6000 s | 0 s |
 
 Düşük enerji koşusu başarısız bir yazılım koşusu değildir: üretim/tüketim dengesi
@@ -117,10 +122,12 @@ henüz modellenmez; fizik ve kayıt işlemleri devam eder.
 
 ## Modelin sınırı
 
-EPS, sabit verimli ve sabit kapasiteli bir enerji deposudur; hücre gerilimi,
-iç direnç, sıcaklık etkisi veya yaşlanma modeli değildir. Panel açısı şu an
-**verilen bir katsayıdır**, ADCS tarafından hesaplanmaz. Faydalı yük yalnızca
-çalışma modu ve güç talebidir; görüntü üretimi, veri hacmi ve termal hesap yoktur.
+EPS, enerji deposu ile sentetik açık devre gerilimi/seri direnç yaklaşımını birleştirir.
+Akım ve gerilim sınırları, I²R kaybı ve sabit kapasite sağlık oranı vardır.
+Hücre düzeyi kalibrasyon, sıcaklık etkisi ve dinamik yaşlanma yoktur. Panel açısı şu an
+**verilen bir katsayıdır**, ADCS tarafından hesaplanmaz. Faydalı yük çalışma modu, güç talebi, aktif süreye bağlı veri miktarı ve ısı gücü üretir.
+Görüntü/sensör fiziği ve depolama/downlink yoktur. Termal model sıcaklıkları hesaplar;
+batarya sıcaklığı ısıtıcı talebini etkiler, henüz batarya kapasitesini/direncini etkilemez.
 
 Yörünge modeli J2, nominal üstel atmosfer, ışınım basıncı ve Güneş/Ay çekimi içerir.
 Bunlar tüm ortam etkilerinin yüksek hassasiyetle modellenmiş olduğu anlamına gelmez.

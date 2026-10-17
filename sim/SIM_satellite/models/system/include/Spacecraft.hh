@@ -6,10 +6,12 @@ LIBRARY DEPENDENCIES: ((system/src/Spacecraft.cpp))
 #define LAB_SPACECRAFT_HH
 #include "power/include/Power.hh"
 #include "payload/include/Payload.hh"
+#include "thermal/include/Thermal.hh"
 class Spacecraft {
 public:
     Power eps;
     Payload payload;
+    Thermal thermal;
     bool low_power; /* -- Hysteretic payload inhibition */
     bool power_limited; /* -- Payload requested active but denied */
     double last_time; /* s Last subsystem update */

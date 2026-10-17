@@ -16,6 +16,10 @@ public:
     double requested_w; /* W Commanded power */
     double consumed_w; /* W Supplied payload power */
     double active_seconds; /* s Accumulated actual active duration */
+    double data_rate_mbps; /* -- Produced megabits per second in active mode */
+    double heat_fraction; /* -- Fraction of consumed electrical power dissipated locally */
+    double generated_data_mbit; /* -- Cumulative produced data; no storage/downlink model */
+    double heat_w; /* W Payload thermal source, not temperature */
     int default_data();
     int initialize();
     int command(double time);

@@ -17,7 +17,21 @@ for name in ("eps.capacity_wh", "eps.panel_area", "eps.panel_efficiency", "eps.i
              "eps.served_w", "eps.unserved_w", "eps.charge_w", "eps.discharge_w", "eps.curtailed_w",
              "eps.loss_w", "eps.balance_error_wh", "eps.bus_residual_w", "eps.harvested_wh", "eps.supplied_wh",
              "payload.commanded", "payload.mode", "payload.consumed_w", "payload.active_seconds",
-             "low_power", "power_limited"):
+             "low_power", "power_limited", "eps.capacity_soh", "eps.effective_capacity_wh",
+             "eps.ocv_empty_v", "eps.ocv_full_v", "eps.internal_resistance", "eps.min_terminal_v", "eps.max_terminal_v",
+             "eps.max_charge_a", "eps.max_discharge_a", "eps.max_charge_w", "eps.max_discharge_w",
+             "eps.charge_efficiency", "eps.discharge_efficiency", "eps.regulation_efficiency", "eps.panel_health",
+             "eps.base_load_w", "eps.cutoff_soc", "eps.recovery_soc", "eps.ocv_v", "eps.terminal_v",
+             "eps.battery_current_a", "eps.ohmic_heat_w", "eps.converter_loss_w", "eps.discharge_limit_w", "eps.charge_limit_w",
+             "payload.active_w", "payload.standby_w", "payload.first_on_s", "payload.cycle_s", "payload.on_duration_s",
+             "payload.data_rate_mbps", "payload.heat_fraction", "payload.generated_data_mbit", "payload.heat_w"):
     rec.add_variable("dyn.spacecraft."+name)
+for name in ("conductance_battery", "conductance_payload", "solar_area", "absorptivity", "radiating_area", "emissivity",
+             "earth_ir_w_m2", "earth_view_factor", "space_k", "heater_enabled", "heater_on_k", "heater_off_k", "heater_rating_w",
+             "heater_requested", "heater_served_w", "solar_absorbed_w", "earth_absorbed_w", "radiated_w",
+             "body_to_battery_w", "body_to_payload_w", "net_energy_j", "balance_error_j", "heater_energy_wh"):
+    rec.add_variable("dyn.spacecraft.thermal."+name)
+for name in ("mass", "cp", "initial_k", "temperature_k", "temperature_c", "internal_w"):
+    for axis in range(3):rec.add_variable(f"dyn.spacecraft.thermal.{name}[{axis}]")
 trick.add_data_record_group(rec, trick.DR_Buffer)
 rec.enable()

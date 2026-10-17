@@ -40,3 +40,69 @@ Bu bir operasyon/parametre senaryosudur; henüz hata enjeksiyon altyapısı yokt
 
 Tam alan listesi `record.py` ve C++ başlıklarındadır. CSV sütunları isimden okunur;
 sütun sırasına bağımlı dış uygulama yazılmamalıdır.
+
+## M1.1 — Bataryanın elektriksel davranışı
+
+Parametre ve durum değişkeni aynı şey değildir. Örneğin iç direnç bir girdidir;
+akım, uç gerilimi ve dirençte oluşan ısı bu girdilerden hesaplanan çıktılardır.
+Senaryo girdileri `RUN_nominal/input.py` içinde açıkça atanır ve CSV'ye kaydedilir.
+
+| EPS parametresi | Varsayılan | Fiziksel sonucu |
+|---|---:|---|
+| `capacity_soh` | 1.0 | Kullanılabilir kapasite = nominal Wh × sağlık oranı |
+| `ocv_empty_v` | 12 V | Sıfır enerji oranında sentetik açık devre gerilimi |
+| `ocv_full_v` | 16.8 V | Tam enerji oranında sentetik açık devre gerilimi |
+| `internal_resistance` | 0.08 Ω | Akıma bağlı gerilim düşümü ve I²R kaybı |
+| `min_terminal_v` | 11.2 V | Deşarj sırasında alt gerilim sınırı |
+| `max_terminal_v` | 16.8 V | Şarj sırasında üst gerilim sınırı |
+| `max_charge_a` | 2 A | Şarj akımı üst sınırı |
+| `max_discharge_a` | 3 A | Deşarj akımı üst sınırı |
+| `panel_health` | 1.0 | Panel çıkışına uygulanan sabit performans oranı |
+
+Mevcut güç sınırları da geçerlidir. Akım, gerilim, dönüştürücü gücü ve kalan enerji
+sınırlarından en kısıtlayıcı olanı uygulanır. `capacity_soh` ve `panel_health`
+senaryo boyunca sabit katsayılardır; çevrim/yaşlanma fiziği veya hata enjeksiyonu değildir.
+
+### Hesaplanan elektriksel çıktılar
+
+- `effective_capacity_wh`: sağlık oranı uygulanmış kapasite.
+- `ocv_v`: açık devre gerilimi; enerji doluluğunun doğrusal fonksiyonu.
+- `terminal_v`: yük altındaki paket uç gerilimi.
+- `battery_current_a`: pozitif deşarj, negatif şarj.
+- `ohmic_heat_w`: iç dirençte oluşan ısı gücü.
+- `converter_loss_w`: şarj/deşarj dönüştürücü kayıpları.
+- `charge_limit_w`, `discharge_limit_w`: o andaki fiziksel sınırların izin verdiği bus güçleri.
+
+**Doğruluk sınırı:** Bu, enerji deposuna bağlanmış durağan Rint devre yaklaşımıdır.
+`soc` hâlâ enerji oranıdır (E/Emax), Coulomb sayımıyla bulunan yük SOC'si değildir.
+Gerilim–enerji eğrisi sentetiktir; hücre veri sayfasından kalibre edilmemiştir.
+RC kutuplanma dinamiği, hücre dengesizliği, sıcaklık bağımlılığı ve yaşlanma yoktur.
+
+## M1.1 — Faydalı yük çıktıları
+
+| Parametre | Varsayılan | Etki |
+|---|---:|---|
+| `data_rate_mbps` | 2 Mbit/s | Yalnızca gerçek aktif çalışma sırasında üretilen veri |
+| `heat_fraction` | 0.9 | Gerçek elektrik tüketiminin yerel ısıya dönüşen oranı |
+
+`generated_data_mbit` toplam üretilen veridir. Bellek doluluğu, downlink ve veri
+kaybı modellenmez. `heat_w` bir termal kaynak çıktısıdır; sıcaklık değildir.
+Batarya direnç ısısı batarya düğümüne, faydalı yük ısısı yük düğümüne bağlanmıştır.
+
+## Duyarlılık deneyleri
+
+- `internal_resistance`: 0.08 → 0.4 Ω; gerilim düşümü ve ısı kaybını karşılaştır.
+- `max_discharge_a`: 3 → 0.5 A; güç yeterli görünse bile faydalı yükün neden reddedildiğine bak.
+- `capacity_soh`: 1 → 0.7; aynı başlangıç enerji oranıyla daha az toplam enerji kaldığını incele.
+- `panel_health`: 1 → 0.6; üretim ve enerji açığının değişimini izle.
+- `data_rate_mbps`: 2 → 4; bu modelde enerji talebi sabit tutulur, yalnızca üretilen veri artar.
+  Veri hızı–güç ilişkisi henüz cihaz modeliyle bağlanmamıştır.
+
+Devre modelinin kavramsal referansı:
+https://www.mathworks.com/help/simscape-battery/ref/batteryequivalentcircuit.html
+Burada MATLAB/Simulink kullanılmaz; denklemler C++ ile uygulanır.
+
+## M2 — Termal parametreler
+
+Üç düğümün kütleleri, özgül ısıları, başlangıç sıcaklıkları, iletim katsayıları,
+yüzey optik özellikleri ve termostat eşikleri [THERMAL.md](THERMAL.md) içinde listelenir.

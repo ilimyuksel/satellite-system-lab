@@ -6,6 +6,11 @@ flowchart LR
   P[Faydalı yük komut planı] -->|İstenen güç| S[Spacecraft koordinasyonu]
   E -->|SOC ve kullanılabilir güç| S
   S -->|Gerçek çalışma modu ve yük| E
+  O -->|Güneş ve gölge| H[Termal ağ]
+  E -->|Kayıplar ve beslenen ısıtıcı| H
+  S -->|Faydalı yük ısısı| H
+  H -->|Termostat talebi| S
+  H --> T
   O --> T[Trick telemetri kaydı]
   E --> T
   S --> T
@@ -23,7 +28,7 @@ EPS ve faydalı yük 1 Hz örneklenmiş modeldir. Her `t` anında:
 1. Önceki `[t-1,t)` aralığı için hesaplanan sabit güçlerle batarya enerjisi ilerletilir.
 2. Yeni `t` anının çevre bilgisi ve faydalı yük komutu okunur.
 3. Düşük SOC durumu histerezisle güncellenir.
-4. Güç talebi ve kullanılabilir güçten gerçek faydalı yük modu seçilir.
+4. Batarya sıcaklığına göre termostat güncellenir. Öncelik platform, ısıtıcı, faydalı yüktür. Güç talebi ve kullanılabilir güçten gerçek faydalı yük modu seçilir.
 5. Bir sonraki bir saniye boyunca tutulacak güçler hesaplanır.
 
 Başlangıçta `dt=0`: henüz enerji tüketilmez. Görünürlükteki değişimler 1 Hz
@@ -35,20 +40,21 @@ Kamera animasyonu kaydedilen konumu aradeğerler; çalışma modları kesikli tu
 ```text
 P_panel = 1361 W/m² × (AU/d)² × A_panel × eta_panel × cos_theta × eta_reg × görünürlük
 P_panel + P_discharge = P_load + P_charge + P_curtailed
-Delta E_Wh = (eta_charge × P_charge - P_discharge / eta_discharge) × dt / 3600
-SOC = E_Wh / capacity_Wh
+Delta E_Wh = (eta_charge × P_charge - P_discharge / eta_discharge - I²R) × dt / 3600
+SOC = E_Wh / (capacity_Wh × capacity_soh)
 ```
 
 Şarj/deşarj güçleri dönüştürücü sınırlarıyla ve bir sonraki aralıkta batarya
 enerjisinin 0..kapasite sınırında kalması koşuluyla kısıtlanır. Dolu bataryada
 artan enerji `curtailed_w` olarak kaydedilir; kaybolmuş sayılmaz. Boş bataryada
-talep karşılanamazsa `unserved_w` artar. Gerilim/akım hesaplanmaz; Wh değerleri
+talep karşılanamazsa `unserved_w` artar. Gerilim/akım sentetik açık devre gerilimi ve seri dirençten hesaplanır; Wh değerleri
 Trick'te boyutsuz birim açıklamasıyla, isimlerinde açık Wh etiketiyle tutulur.
 
 Enerji doğrulaması:
-`E-E0 = harvested - supplied - curtailed - conversion_losses`.
+`E-E0 = harvested - supplied - curtailed - conversion_losses (dönüştürücü + I²R)`.
 Panelden önceki optik/PV kayıpları elektrik enerjisi dengesi kapsamı dışındadır;
-`solar_w` regülatör çıkışıdır. Termal model olmadığından kayıplar sıcaklığa çevrilmez.
+`solar_w` regülatör çıkışıdır. Batarya I²R kaybı batarya düğümüne, batarya dönüştürücü kaybı gövdeye aktarılır.
+PV/regülatör öncesi kayıplar termal ağa dahil değildir.
 
 ## Faydalı yük ve yük yönetimi
 
@@ -80,3 +86,22 @@ EPS için Güneş ve gölge her zaman hesaplanır; `use_sun=False` yalnızca Gü
 EPS panel alanı ile sürükleme/SRP etkin alanları ayrı girdilerdir. Henüz tek bir
 geometri/yönelim modelinden türetilmezler. Böyle bir bağlantı ADCS/alan modelinin
 ileride eklenmesiyle kurulacaktır.
+
+
+## Rint devre bağlantısı (M1.1)
+
+Açık devre gerilimi `Voc=Vempty+(Vfull-Vempty)*SOC`.
+Pozitif deşarj akımı için `Vterminal=Voc-I*R`, bus'a aktarılan güç
+`eta_discharge*(Voc*I-R*I²)` olur. Şarjda akım işareti negatiftir ve terminal
+voltajı yükselir. Akım, güç denkleminin düşük akımlı fiziksel kökünden bulunur.
+Depolama enerjisinin değişimi `-Voc*I*dt` ile hesaplanır; I²R ayrıca kayıp olarak
+kaydedilir. Direnç 0 olduğunda önceki ideal verim modeline geri döner.
+
+Kullanılabilir enerji oranı ile doğrusal gerilim eşlemesi bir eğitim yaklaşımıdır;
+gerçek batarya yük-SOC eğrisi değildir. Parametreler ve sınırlar PARAMETERS.md'dedir.
+
+## Termal zamanlama (M2)
+
+Önceki aralığın güçleriyle üç sıcaklık, 1 saniyelik RK4 adımıyla ilerletilir.
+İletim ve T⁴ ışınımı her ara aşamada yeniden hesaplanır; dış kaynaklar aralık boyunca sabittir.
+Sonra yeni termostat ve elektrik dağıtımı belirlenir. Ayrıntılar: [Termal model](THERMAL.md).

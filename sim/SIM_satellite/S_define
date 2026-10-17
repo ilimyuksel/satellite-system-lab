@@ -1,7 +1,7 @@
 /************************ TRICK HEADER *************************
 PURPOSE: (Milestone 1: orbit/environment coupled to energy storage and payload.)
 LIBRARY DEPENDENCIES:
- ((orbit/src/Orbit.cpp) (power/src/Power.cpp) (payload/src/Payload.cpp) (system/src/Spacecraft.cpp))
+ ((orbit/src/Orbit.cpp) (power/src/Power.cpp) (payload/src/Payload.cpp) (system/src/Spacecraft.cpp) (thermal/src/Thermal.cpp))
 ***************************************************************/
 #define TRICK_NO_MONTE_CARLO
 #define TRICK_NO_MASTERSLAVE

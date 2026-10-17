@@ -36,6 +36,23 @@ public:
     double losses_wh; /* -- Integrated battery conversion losses, Wh */
     double balance_error_wh; /* -- Storage minus accounted net energy, Wh */
     double bus_residual_w; /* W Instantaneous bus power residual */
+    double capacity_soh; /* -- Fixed capacity health factor, not dynamic ageing */
+    double effective_capacity_wh; /* -- Usable capacity after health scaling, Wh */
+    double ocv_empty_v; /* V Synthetic open circuit voltage at zero energy fraction */
+    double ocv_full_v; /* V Synthetic open circuit voltage at full energy fraction */
+    double internal_resistance; /* ohm Pack series resistance */
+    double min_terminal_v; /* V Minimum discharge terminal voltage */
+    double max_terminal_v; /* V Maximum charge terminal voltage */
+    double max_charge_a; /* A Charge current limit */
+    double max_discharge_a; /* A Discharge current limit */
+    double panel_health; /* -- Fixed panel performance factor */
+    double ocv_v; /* V Open circuit voltage */
+    double terminal_v; /* V Loaded battery terminal voltage */
+    double battery_current_a; /* A Positive discharge, negative charge */
+    double ohmic_heat_w; /* W Battery resistive heat, no temperature model */
+    double converter_loss_w; /* W Battery converter losses */
+    double discharge_limit_w; /* W Available battery bus power */
+    double charge_limit_w; /* W Available battery charging bus power */
     int default_data();
     int initialize();
     int advance(double dt);

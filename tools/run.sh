@@ -2,9 +2,10 @@
 set -euo pipefail
 source "$(dirname "$0")/environment.sh"
 scenario="${1:-nominal}"
-case "$scenario" in nominal|low_power) ;; *) echo 'Kullanım: tools/run.sh [nominal|low_power]' >&2; exit 2;; esac
+case "$scenario" in nominal|low_power|cold|cold_no_heater) ;; *) echo 'Kullanım: tools/run.sh [nominal|low_power|cold|cold_no_heater]' >&2; exit 2;; esac
 mkdir -p "$LAB_ROOT/artifacts"
 cd "$LAB_ROOT/sim/SIM_satellite"
+python3 "$LAB_ROOT/tools/prepare_build.py"
 trick-CP > "$LAB_ROOT/artifacts/build.log" 2>&1
 shopt -s nullglob
 executables=(./S_main*.exe)
